@@ -63,50 +63,116 @@ $(function() {
             window.data_byprocess[proc][key].push(metrics[key].q3);
             window.data_byprocess[proc][key].push(metrics[key].max);
         }
-        if (key == "time") {
-            window.data_byprocess[proc][key] = window.data_byprocess[proc][key].map(function(d,i){
-            return moment.duration(d).asMinutes().toFixed(1);
+        if (key == "co2e") {
+          window.data_byprocess[proc]['co2e_readable'] = window.data_byprocess[proc][key].map(function(value){
+            [value_co2e, units_co2e] = readable_units_value(value, 4)
+            return value_co2e;
+          });
+          window.data_byprocess[proc][key] = window.data_byprocess[proc][key].map(function(value){
+            return Math.round(value);
+          });
+        } else if (key == "energy") {
+          window.data_byprocess[proc]['energy_readable'] = window.data_byprocess[proc][key].map(function(value){
+            [value_energy, units_energy] = readable_units_value(value, 5)
+            return value_energy;
+          });
+          window.data_byprocess[proc][key] = window.data_byprocess[proc][key].map(function(value){
+            return Math.round(value);
           });
         }
       }
     }
   }
 
+  // Convert to readable units for plots
+  function readable_units_value(value, unit_index) {
+    units = ['p', 'n', 'u', 'm', ' ', 'K', 'M', 'G', 'T', 'P', 'E']  // Units: pico, nano, micro, mili, 0, Kilo, Mega, Giga, Tera, Peta, Exa
+    
+    while (value >= 1000 && unit_index < units.length - 1) {
+        value /= 1000;
+        unit_index++;
+    }
+    while (value <= 1 && unit_index > 0) {
+        value *= 1000;
+        unit_index--;
+    }
+    
+    return [ value, units[unit_index] ];
+  }
+
   // Plot histograms of resource usage
+  //// Co2e
   var co2e_data = [];
+  var energy_data = [];
+  var co2e_data_read = [];
+  var energy_data_read = [];
   for(var pname in window.data_byprocess){
     if( !window.data_byprocess.hasOwnProperty(pname) )
         continue;
     var smry = window.data_byprocess[pname];
     co2e_data.push({y: smry.co2e, name: pname, type:'box', boxmean: true, boxpoints: false});
+    energy_data.push({y: smry.energy, name: pname, type:'box', boxmean: true, boxpoints: false});
+    co2e_data_read.push({y: smry.co2e_readable, name: pname, type:'box', boxmean: true, boxpoints: false});
+    energy_data_read.push({y: smry.energy_readable, name: pname, type:'box', boxmean: true, boxpoints: false});
+
   }
 
   Plotly.newPlot('co2eplot', co2e_data, { title: 'CO2 emission', yaxis: {title: 'CO2 emission (g)', tickformat: '.1f', rangemode: 'tozero'} });
-
-
+  Plotly.newPlot('energyplot', energy_data, { title: 'Energy consumption', yaxis: {title: 'Energy consumption (KWh)', tickformat: '.1f', rangemode: 'tozero'} });
+  
   // Only plot tabbed plots when shown
   $('#pctco2eplot_tablink').on('shown.bs.tab', function (e) {
     if($('#pctco2eplot').is(':empty')){
-      Plotly.newPlot('pctco2eplot', co2e_data, { title: '% ?', yaxis: {title: '% ?', tickformat: '.1f', rangemode: 'tozero'} });
+      Plotly.newPlot('pctco2eplot', co2e_data_read, { title: 'CO2 emission', yaxis: {title: 'CO2 emission ('+units_co2e+'g)', tickformat: '.1f', rangemode: 'tozero'} });
     }
-  });
+  })
+  $('#pctenergyplot_tablink').on('shown.bs.tab', function (e) {
+    if($('#pctenergyplot').is(':empty')){
+      Plotly.newPlot('pctenergyplot', energy_data_read, { title: 'Energy consumption', yaxis: {title: 'Energy consumption ('+units_energy+'Wh)', tickformat: '.1f', rangemode: 'tozero'} });
+    }
+  })
 
+  // Convert to readable units
+  function readable_units(value, unit_index) {
+    units = ['p', 'n', 'u', 'm', ' ', 'K', 'M', 'G', 'T', 'P', 'E']  // Units: pico, nano, micro, mili, 0, Kilo, Mega, Giga, Tera, Peta, Exa
+    
+    while (value >= 1000 && unit_index < units.length - 1) {
+        value /= 1000;
+        unit_index++;
+    }
+    while (value <= 1 && unit_index > 0) {
+        value *= 1000;
+        unit_index--;
+    }
+    
+    return Math.floor(value) + units[unit_index];
+  }
+  
   // Humanize duration
   function humanize(duration){
-    if (duration.days() > 0) {
-      return duration.days() + "d " + duration.hours() + "h"
+    if (duration > 24) {
+      days = Math.floor(duration / 24);
+      hours = Math.floor(duration % 24);
+      return days + "d " + hours + "h";
     }
-    if (duration.hours() > 0) {
-      return duration.hours() + "h " + duration.minutes() + "m"
+    if (duration >= 1) {
+      minutes = Math.floor(hours % 60);
+      return Math.floor(duration) + "h" + minutes + "m";
     }
-    if (duration.minutes() > 0) {
-      return duration.minutes() + "m " + duration.seconds() + "s"
+    if (duration < 1) {
+      minutes = Math.floor(duration * 60);
+      if (minutes >= 1) {
+        seconds = Math.floor(duration * 60 % 60);
+        return minutes + "m " + seconds + "s";
+      }
+      seconds = Math.floor(duration * 60 * 60);
+      return seconds.toFixed(1) + "s";
     }
-    return duration.asSeconds().toFixed(1) + "s"
+    return Math.floor(duration * 60 * 60).toFixed(1) + "s";
   }
 
   // Build the trace table
-  function make_duration(ms, type){
+  function make_index0(ms, type){
     if (type === 'sort') {
       return parseInt(ms);
     }
@@ -116,9 +182,9 @@ $(function() {
     if (ms == '-' || ms == 0){
       return ms;
     }
-    return humanize(moment.duration( parseInt(ms) ));
+    return readable_units(ms, 4) + 'g';
   }
-  function make_date(ms, type){
+  function make_energy(ms, type){
     if (type === 'sort') {
       return parseInt(ms);
     }
@@ -128,31 +194,33 @@ $(function() {
     if (ms == '-' || ms == 0){
       return ms;
     }
-    return moment( parseInt(ms) ).format();
+    return readable_units(ms, 5) + 'Wh';
   }
-  function make_memory(bytes, type){
+  function make_time(ms, type){
     if (type === 'sort') {
-      return parseInt(bytes);
+      return parseInt(ms);
     }
     if($('#nf-table-humanreadable').val() == 'false'){
-      return bytes;
+      return ms;
     }
-    if (bytes == '-' || bytes == 0){
-      return bytes;
+    if (ms == '-' || ms == 0){
+      return ms;
     }
-    // https://stackoverflow.com/a/14919494
-    var thresh = 1024;
-    if(Math.abs(bytes) < thresh) {
-      return bytes + ' B';
-    }
-    var units = ['kB','MB','GB','TB','PB','EB','ZB','YB'];
-    var u = -1;
-    do {
-        bytes /= thresh;
-        ++u;
-    } while(Math.abs(bytes) >= thresh && u < units.length - 1);
-    return bytes.toFixed(3)+' '+units[u];
+    return humanize(ms);
   }
+  function make_memory(ms, type){
+    if (type === 'sort') {
+      return parseInt(ms);
+    }
+    if($('#nf-table-humanreadable').val() == 'false'){
+      return ms;
+    }
+    if (ms == '-' || ms == 0){
+      return ms;
+    }
+    return readable_units(ms, 8) + 'B';
+  }
+
   function make_tasks_table(){
     // reset
       if ( $.fn.dataTable.isDataTable( '#tasks_table' ) ) {
@@ -189,48 +257,16 @@ $(function() {
               return '<code>'+script+'</code>';
             }
           },
-          { title: 'allocated cpus', data: 'cpus' },
-          { title: '%cpu', data: '%cpu' },
-          { title: 'allocated memory', data: 'memory', type: 'num', render: make_memory },
-          { title: '%mem', data: '%mem' },
-          { title: 'vmem', data: 'vmem', type: 'num', render: make_memory },
-          { title: 'rss', data: 'rss', type: 'num', render: make_memory },
-          { title: 'peak_vmem', data: 'peak_vmem', type: 'num', render: make_memory },
-          { title: 'peak_rss', data: 'peak_rss', type: 'num', render: make_memory },
-          { title: 'allocated time', data: 'time', type: 'num', render: make_duration },
-          { title: 'duration', data: 'duration', type: 'num', render: make_duration },
-          { title: 'realtime', data: 'realtime', type: 'num', render: make_duration },
-          { title: 'script', data: 'script', render: function(data) {
-              return '<pre class="script_block short"><code>' + data.trim() + '</code></pre>';
-            }
-          },
-          { title: 'exit', data: 'exit' },
-          { title: 'submit', data: 'submit', type: 'num', render: make_date },
-          { title: 'start', data: 'start', type: 'num', render: make_date },
-          { title: 'complete', data: 'complete', type: 'num', render: make_date },
-          { title: 'rchar', data: 'rchar', type: 'num', render: make_memory },
-          { title: 'wchar', data: 'wchar', type: 'num', render: make_memory },
-          { title: 'syscr', data: 'syscr', type: 'num', render: make_memory },
-          { title: 'syscw', data: 'syscw', type: 'num', render: make_memory },
-          { title: 'read_bytes', data: 'read_bytes', type: 'num', render: make_memory },
-          { title: 'write_bytes', data: 'write_bytes', type: 'num', render: make_memory },
-          { title: 'native_id', data: 'native_id' },
-          { title: 'name', data: 'name' },
-          { title: 'module', data: 'module' },
-          { title: 'container', data: 'container', render: function(data) {
-              return '<samp>'+data+'</samp>';
-            }
-          },
-          { title: 'disk', data: 'disk' },
-          { title: 'attempt', data: 'attempt' },
-          { title: 'scratch', data: 'scratch', render: function(data) {
-              return '<samp>'+data+'</samp>';
-            }
-          },
-          { title: 'workdir', data: 'workdir', render: function(data) {
-              return '<samp>'+data+'</samp>';
-            }
-          }
+          { title: 'CO2 emissions', data: 'co2e', render: make_index0 },
+          { title: 'energy consumption', data: 'energy', render: make_energy },
+          { title: 'Time', data: 'time', render: make_time },
+          { title: 'Number of cores', data: 'cores' },
+          { title: 'Power draw of a computing core', data: 'core_power' },
+          { title: 'Core usage factor', data: 'core_usage' },
+          { title: 'Size of memory available', data: 'memory', render: make_memory },
+          //{ title: 'Power draw of memory', data: 'memory_power', render: make_index0 },
+          //{ title: 'Efficiency coefficient of the data center', data: 'pue' },
+          //{ title: 'Carbon intensity', data: 'ci', render: make_index0 },
         ],
         "deferRender": true,
         "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
@@ -238,8 +274,8 @@ $(function() {
         "colReorder": true,
         "columnDefs": [
           { className: "id", "targets": [ 0,1,2,3 ] },
-          { className: "meta", "targets": [ 4,13,16,17,18,19,20,27,28,29,30,31,32,33,34 ] },
-          { className: "metrics", "targets": [ 5,6,7,8,9,10,11,12,14,15,21,22,23,24,25,26 ] }
+          { className: "meta", "targets": [ 4,7,8,9,10,11 ] },
+          { className: "metrics", "targets": [ 5,6 ] }
         ],
         "buttons": [
           {

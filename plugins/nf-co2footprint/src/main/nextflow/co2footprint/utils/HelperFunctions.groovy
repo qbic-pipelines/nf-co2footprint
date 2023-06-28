@@ -2,7 +2,7 @@ package nextflow.co2footprint
 
 public class HelperFunctions {
 
-    static public String convertToReadableUnits(double value, int unitIndex=4) {
+    static public String convertToReadableUnits(Number value, int unitIndex=4) {
         def units = ['p', 'n', 'u', 'm', ' ', 'K', 'M', 'G', 'T', 'P', 'E']  // Units: pico, nano, micro, mili, 0, Kilo, Mega, Giga, Tera, Peta, Exa
         
         while (value >= 1000 && unitIndex < units.size() - 1) {
@@ -14,7 +14,7 @@ public class HelperFunctions {
             unitIndex--
         }
         
-        return "${value}${units[unitIndex]}"
+        return "${value} ${units[unitIndex]}"
     }
 
 }

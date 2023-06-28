@@ -18,6 +18,7 @@ package nextflow.co2footprint
 
 import groovy.text.GStringTemplateEngine
 import groovy.transform.PackageScope
+import groovy.transform.PackageScopeTarget
 import groovyx.gpars.agent.Agent
 import nextflow.processor.TaskHandler
 import nextflow.processor.TaskProcessor
@@ -45,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 @Slf4j
 @CompileStatic
+@PackageScope(PackageScopeTarget.FIELDS)
 class CO2FootprintFactory implements TraceObserverFactory {
 
     private CO2FootprintConfig config
@@ -53,7 +55,6 @@ class CO2FootprintFactory implements TraceObserverFactory {
     // TODO make sure for key value can be set only once?
 
     private Map<String, Float> cpuData = ['default': (Float) 12.0]
-    @PackageScope
     Double total_energy = 0
     Double total_co2 = 0
 
@@ -189,7 +190,7 @@ class CO2FootprintFactory implements TraceObserverFactory {
         def Double c = (e * ci) as Double
         log.info "CO2: $c"
 
-        return [e, c]
+        return [e, c, t as Double, nc as Double, pc as Double, uc as Double, nm as Double, pm as Double, pue as Double, ci as Double]
     }
 
 
@@ -270,7 +271,7 @@ class CO2FootprintFactory implements TraceObserverFactory {
             writer = new Agent<PrintWriter>(co2eFile)
             summaryWriter = new Agent<PrintWriter>(co2eSummaryFile)
 
-            writer.send { co2eFile.println("task_id\tenergy_consumption\tCO2e"); co2eFile.flush() }
+            writer.send { co2eFile.println("task_id\tenergy_consumption\tCO2e\ttime\tnumber_of_cores\tpower_draw_of_a_computing_core\tcore_usage_factor\tsize_of_memory_available\tpower_draw_of_memory\tefficiency_coefficient_of_the_data_center\tcarbon_intensity"); co2eFile.flush() }
         }
 
         /**
@@ -286,7 +287,7 @@ class CO2FootprintFactory implements TraceObserverFactory {
             //writer.send { co2eFile.println("Test CO2 emission is:"); co2eFile.flush() }
             //writer.send { PrintWriter it -> it.println("Test CO2 emission is:"); it.flush() }
             co2eSummaryFile.println("The total CO2 emission is: ${HelperFunctions.convertToReadableUnits(total_co2)}g")
-            co2eSummaryFile.println("The total energy consumption is: ${HelperFunctions.convertToReadableUnits(total_energy)}Wh")
+            co2eSummaryFile.println("The total energy consumption is: ${HelperFunctions.convertToReadableUnits(total_energy,5)}Wh")
             co2eSummaryFile.flush()
             co2eSummaryFile.close()
 
@@ -339,15 +340,24 @@ class CO2FootprintFactory implements TraceObserverFactory {
             def computation_results = computeTaskCO2footprint(trace)
             def eConsumption = computation_results[0]
             def co2 = computation_results[1]
+            def t = computation_results[2]
+            def nc = computation_results[3]
+            def pc = computation_results[4]
+            def uc = computation_results[5]
+            def nm = computation_results[6]
+            def pm = computation_results[7]
+            def pue = computation_results[8]
+            def ci = computation_results[9]
 
+            def Map valuesMap = new LinkedHashMap<>(['energy': eConsumption, 'co2e': co2, 'name': trace.get('name').toString(), 'time': t, 'cores': nc, 'core_power': pc, 'core_usage': uc, 'memory': nm, 'memory_power': pm, 'pue': pue, 'ci': ci])
 
-
-            co2eRecords[taskId] = new CO2Record((Double) eConsumption, (Double) co2, trace.get('name').toString())
+            co2eRecords[taskId] = new CO2Record((Double) eConsumption, (Double) co2, trace.get('name').toString(), valuesMap)
             total_energy += eConsumption
             total_co2 += co2
 
             // save to the file
-            writer.send { PrintWriter it -> it.println("${taskId}\t${HelperFunctions.convertToReadableUnits(eConsumption,5)}Wh\t${HelperFunctions.convertToReadableUnits(co2)}g"); it.flush() }
+            writer.send { PrintWriter it -> it.println("${taskId}\t${HelperFunctions.convertToReadableUnits(eConsumption,5)}Wh\t${HelperFunctions.convertToReadableUnits(co2)}g\t\
+            ${t} hours\t${nc}\t${pc}\t${uc}\t${HelperFunctions.convertToReadableUnits(nm,8)}B\t${HelperFunctions.convertToReadableUnits(pm)}W\t${pue}\t${HelperFunctions.convertToReadableUnits(ci)}g/kWh"); it.flush() }
         }
 
 
@@ -363,12 +373,24 @@ class CO2FootprintFactory implements TraceObserverFactory {
             def computation_results = computeTaskCO2footprint(trace)
             def eConsumption = computation_results[0]
             def co2 = computation_results[1]
-            co2eRecords[taskId] = new CO2Record((Double) eConsumption, (Double) co2, trace.get('name').toString())
+            def t = computation_results[2]
+            def nc = computation_results[3]
+            def pc = computation_results[4]
+            def uc = computation_results[5]
+            def nm = computation_results[6]
+            def pm = computation_results[7]
+            def pue = computation_results[8]
+            def ci = computation_results[9]
+
+            def Map valuesMap = new LinkedHashMap<>(['energy': eConsumption, 'co2e': co2, 'name': trace.get('name').toString(), 'time': t, 'cores': nc, 'core_power': pc, 'core_usage': uc, 'memory': nm, 'memory_power': pm, 'pue': pue, 'ci': ci])
+
+            co2eRecords[taskId] = new CO2Record((Double) eConsumption, (Double) co2, trace.get('name').toString(), valuesMap)
             total_energy += eConsumption
             total_co2 += co2
 
             // save to the file
-            writer.send { PrintWriter it -> it.println("${taskId}\t${HelperFunctions.convertToReadableUnits(eConsumption,5)}Wh\t${HelperFunctions.convertToReadableUnits(co2)}g"); it.flush() }
+            writer.send { PrintWriter it -> it.println("${taskId}\t${HelperFunctions.convertToReadableUnits(eConsumption,5)}Wh\t${HelperFunctions.convertToReadableUnits(co2)}g\t\
+            ${t} hours\t${nc}\t${pc}\t${uc}\t${HelperFunctions.convertToReadableUnits(nm,8)}B\t${HelperFunctions.convertToReadableUnits(pm)}W\t${pue}\t${HelperFunctions.convertToReadableUnits(ci)}g/kWh"); it.flush() }
         }
     }
 
@@ -444,6 +466,13 @@ class CO2FootprintFactory implements TraceObserverFactory {
          */
         protected Map<TaskId,TraceRecord> getRecords() {
             records
+        }
+
+        /**
+         * @return The map of collected {@link CO2Record}s
+         */
+        protected Map<TaskId,CO2Record> getCO2Records() {
+            co2eRecords
         }
 
         /**
@@ -530,8 +559,9 @@ class CO2FootprintFactory implements TraceObserverFactory {
                 return
             }
 
-            log.info "TEST "
-            log.info "${co2eRecords[ trace.taskId ].getCO2e()}"
+            //log.info "TEST "
+            //log.info "${co2eRecords[ trace.taskId ].getCO2e()}"
+            //log.info "$co2eRecords"
 
             synchronized (records) {
                 records[ trace.taskId ] = trace
@@ -575,7 +605,8 @@ class CO2FootprintFactory implements TraceObserverFactory {
          */
         protected String renderTasksJson() {
             final r = getRecords()
-            r.size()<=maxTasks ? renderJsonData(r.values()) : 'null'
+            final co2r = getCO2Records()
+            co2r.size()<=maxTasks ? renderJsonData(r.values(), co2r.values()) : 'null'
         }
 
         protected String renderSummaryJson() {
@@ -630,19 +661,24 @@ class CO2FootprintFactory implements TraceObserverFactory {
          * Render the executed tasks json payload
          *
          * @param data A collection of {@link TraceRecord}s representing the tasks executed
+         * @param dataCO2 A collection of {@link CO2Record}s representing the tasks executed
          * @return The rendered json payload
          */
-        protected String renderJsonData(Collection<TraceRecord> data) {
+        protected String renderJsonData(Collection<TraceRecord> data, Collection<CO2Record> dataCO2) {
             def List<String> formats = null
             def List<String> fields = null
+            def List<String> co2Formats = null
+            def List<String> co2Fields = null
             def result = new StringBuilder()
             result << '[\n'
-            int i=0
-            for( TraceRecord record : data ) {
-                if( i++ ) result << ','
+            for (int i = 0; i < data.size(); i++) {
+                if( i ) result << ','
                 if( !formats ) formats = TraceRecord.FIELDS.values().collect { it!='str' ? 'num' : 'str' }
                 if( !fields ) fields = TraceRecord.FIELDS.keySet() as List
-                record.renderJson(result,fields,formats)
+                data[i].renderJson(result,fields,formats)
+                if( !co2Formats ) co2Formats = CO2Record.FIELDS.values().collect { it!='str' ? 'num' : 'str' }
+                if( !co2Fields ) co2Fields = CO2Record.FIELDS.keySet() as List
+                dataCO2[i].renderJson(result,co2Fields,co2Formats)
             }
             result << ']'
             return result.toString()
