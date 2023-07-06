@@ -51,47 +51,4 @@ class CO2FootprintDslTest extends Dsl2Spec{
         pluginsMode ? System.setProperty('pf4j.mode',pluginsMode) : System.clearProperty('pf4j.mode')
     }
 
-    def 'should perform a hi and create a channel' () {
-        when:
-        def SCRIPT = '''
-            include {reverse} from 'plugin/nf-co2footprint'
-            channel.reverse('hi!') 
-            '''
-        and:
-        def result = new MockScriptRunner([hello:[prefix:'>>']]).setScript(SCRIPT).execute()
-        then:
-        result.val == 'hi!'.reverse()
-        result.val == Channel.STOP
-    }
-
-    def 'should store a goodbye' () {
-        when:
-        def SCRIPT = '''
-            include {goodbye} from 'plugin/nf-co2footprint'
-            channel
-                .of('folks')
-                .goodbye() 
-            '''
-        and:
-        def result = new MockScriptRunner([:]).setScript(SCRIPT).execute()
-        then:
-        result.val == 'Goodbye folks'
-        result.val == Channel.STOP
-        
-    }
-
-    def 'can use an imported function' () {
-        when:
-        def SCRIPT = '''
-            include {randomString} from 'plugin/nf-co2footprint'
-            channel
-                .of( randomString(20) )                
-            '''
-        and:
-        def result = new MockScriptRunner([:]).setScript(SCRIPT).execute()
-        then:
-        result.val.size() == 20
-        result.val == Channel.STOP
-    }
-
 }

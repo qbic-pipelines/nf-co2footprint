@@ -1,53 +1,14 @@
-# nf-hello plugin 
+# nf-co2footprint plugin 
  
-This project shows how to implement a simple Nextflow plugin named `nf-hello` which intercepts workflow execution events to print a message when the execution starts and on workflow completion.
-
-The `nf-hello` plugin also enriches the `channel` object with a `producer` and `consumer` method (`reverse` and `goodbye`) which can be used in a pipeline script.
-
-Also exposes some @FunctionS to be used in the pipeline as custom methods 
-
-   NOTE: this repo uses the name `nf-hello` as root name. In case you want to use this repo as starting point for a custom plugin, you need at least to change `settings.gradle` and rename `plugins/nf-hello` folder.
-
-## Plugin structure
-                    
-- `settings.gradle`
-    
-    Gradle project settings. 
-
-- `plugins/nf-hello`
-    
-    The plugin implementation base directory.
-
-- `plugins/nf-hello/build.gradle` 
-    
-    Plugin Gradle build file. Project dependencies should be added here.
-
-- `plugins/nf-hello/src/resources/META-INF/MANIFEST.MF` 
-    
-    Manifest file defining the plugin attributes e.g. name, version, etc. The attribute `Plugin-Class` declares the plugin main class. This class should extend the base class `nextflow.plugin.BasePlugin` e.g. `nextflow.co2footprint.HelloPlugin`.
-
-- `plugins/nf-hello/src/resources/META-INF/extensions.idx`
-    
-    This file declares one or more extension classes provided by the plugin. Each line should contain the fully qualified name of a Java class that implements the `org.pf4j.ExtensionPoint` interface (or a sub-interface).
-
-- `plugins/nf-hello/src/main` 
-
-    The plugin implementation sources.
-
-- `plugins/nf-hello/src/test` 
-
-    The plugin unit tests. 
+This Nextlow plugins implements the calculation of the CO2 footprint of running a workflow and each of its independent tasks.
 
 ## Plugin classes
 
-- `HelloConfig`: simple example how to handle configuration options provided via the Nextflow configuration file. 
-
-- `HelloExtension`: show how create an extension class that can be used to create custom channel factories, operation and fuctions that can be imported in the pipeline script as DSL extensions.
-
-- `CO2FootprintFactory` and `CO2FootprintObserver`: show how to intercept workflow runtime events and react correspondly with custom code.
-
-- `HelloPlugin`: the plugin entry point.
-
+- `CO2FootprintFactory`: Implements `TraceObserverFactory`. Implements the validation observer factory
+- `CO2FootprintTextFileObserver`: Implements `TraceObserver`. Creates a trace file with CO2 footprint data.
+- `CO2FootprintConfig`: Defines the path of output files containing CO2 footprint results and the summary.
+- `CO2FootprintPlugin`: Implements the plugin entry point.
+- `CO2FootprintFactoryTest`: Tests for class `CO2FootprintFactory`.
 
 ## Unit testing 
 
