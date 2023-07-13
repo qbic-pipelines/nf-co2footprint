@@ -1,21 +1,14 @@
 // JavaScript used to power the Nextflow Report Template output.
 window.data_byprocess = {};
 
-/* helper functions that takes an array of numbers each of each
-   is a integer representing a number of bytes and normalise to base 2 scale */
-function norm_mem( list ) {
+/* helper functions that takes an array of numbers 
+    units are in miliWh or milig and are converted to its base unit */
+function norm_units( list ) {
   if( list == null ) return null;
   var result = new Array(list.length);
   for( i=0; i<list.length; i++ ) {
     var value = list[i];
-    var x = Math.floor(Math.log10(value) / Math.log10(1024));
-    if( x == 0 )
-      value = value/1.024;
-    else {
-      for( j=0; j<x; j++ )
-        value = value / 1.024;
-    }
-    result[i] = Math.round(value);
+    result[i] = value / 1000;
   }
   return result;
 }
@@ -64,7 +57,7 @@ $(function() {
             window.data_byprocess[proc][key].push(metrics[key].max);
         }
         if (key == "time") {
-            window.data_byprocess[proc][key] = window.data_byprocess[proc][key].map(function(d,i){
+          window.data_byprocess[proc][key] = window.data_byprocess[proc][key].map(function(d,i){
             return moment.duration(d).asMinutes().toFixed(1);
           });
         }
@@ -73,26 +66,38 @@ $(function() {
   }
 
   // Plot histograms of resource usage
+  //// Co2e
   var co2e_data = [];
+  var energy_data = [];
   for(var pname in window.data_byprocess){
     if( !window.data_byprocess.hasOwnProperty(pname) )
         continue;
     var smry = window.data_byprocess[pname];
-    co2e_data.push({y: smry.co2e, name: pname, type:'box', boxmean: true, boxpoints: false});
+    co2e_data.push({y: norm_units(smry.co2e), name: pname, type:'box', boxmean: true, boxpoints: false});
+    energy_data.push({y: norm_units(smry.energy), name: pname, type:'box', boxmean: true, boxpoints: false});
   }
 
-  Plotly.newPlot('co2eplot', co2e_data, { title: 'CO2 emission', yaxis: {title: 'CO2 emission (g)', tickformat: '.1f', rangemode: 'tozero'} });
+  Plotly.newPlot('co2eplot', co2e_data, { title: 'CO2 emission', yaxis: {title: 'CO2 emission (g)', tickformat: '.2e', rangemode: 'tozero'} });
+  Plotly.newPlot('energyplot', energy_data, { title: 'Energy consumption', yaxis: {title: 'Energy consumption (Wh)', tickformat: '.2s', rangemode: 'tozero'} });
 
-
-  // Only plot tabbed plots when shown
-  $('#pctco2eplot_tablink').on('shown.bs.tab', function (e) {
-    if($('#pctco2eplot').is(':empty')){
-      Plotly.newPlot('pctco2eplot', co2e_data, { title: '% ?', yaxis: {title: '% ?', tickformat: '.1f', rangemode: 'tozero'} });
+  // Convert to readable units
+  function readable_units(value, unit_index) {
+    units = ['p', 'n', 'u', 'm', ' ', 'K', 'M', 'G', 'T', 'P', 'E']  // Units: pico, nano, micro, mili, 0, Kilo, Mega, Giga, Tera, Peta, Exa
+    
+    while (value >= 1000 && unit_index < units.length - 1) {
+        value /= 1000;
+        unit_index++;
     }
-  });
-
+    while (value <= 1 && unit_index > 0) {
+        value *= 1000;
+        unit_index--;
+    }
+    
+    return value + ' ' + units[unit_index];
+  }
+  
   // Humanize duration
-  function humanize(duration){
+  /*function humanize(duration){
     if (duration.days() > 0) {
       return duration.days() + "d " + duration.hours() + "h"
     }
@@ -103,10 +108,34 @@ $(function() {
       return duration.minutes() + "m " + duration.seconds() + "s"
     }
     return duration.asSeconds().toFixed(1) + "s"
-  }
+  }*/
 
   // Build the trace table
-  function make_duration(ms, type){
+  function make_co2e(ms, type){
+    if (type === 'sort') {
+      return parseInt(ms);
+    }
+    if($('#nf-table-humanreadable').val() == 'false'){
+      return ms;
+    }
+    if (ms == '-' || ms == 0){
+      return ms;
+    }
+    return readable_units(ms, 3) + 'g';
+  }
+  function make_energy(ms, type){
+    if (type === 'sort') {
+      return parseInt(ms);
+    }
+    if($('#nf-table-humanreadable').val() == 'false'){
+      return ms;
+    }
+    if (ms == '-' || ms == 0){
+      return ms;
+    }
+    return readable_units(ms, 3) + 'Wh';
+  }
+  /*function make_duration(ms, type){
     if (type === 'sort') {
       return parseInt(ms);
     }
@@ -152,12 +181,21 @@ $(function() {
         ++u;
     } while(Math.abs(bytes) >= thresh && u < units.length - 1);
     return bytes.toFixed(3)+' '+units[u];
-  }
+  }*/
   function make_tasks_table(){
     // reset
       if ( $.fn.dataTable.isDataTable( '#tasks_table' ) ) {
         $('#tasks_table').DataTable().destroy();
       }
+
+      // Column titles
+      var energyConsumptionTitle = 'energy consumption (mWh)'; // Default column title
+      var co2EmissionsTitle = 'CO2 emissions (mg)';
+      if ($('#nf-table-humanreadable').val() == 'true') {
+        energyConsumptionTitle = 'energy consumption'; // Change the column title if the button is selected
+        co2EmissionsTitle = 'CO2 emissions';
+      }
+
       var table = $('#tasks_table').DataTable({
         data: window.data.trace,
         columns: [
@@ -189,48 +227,8 @@ $(function() {
               return '<code>'+script+'</code>';
             }
           },
-          { title: 'allocated cpus', data: 'cpus' },
-          { title: '%cpu', data: '%cpu' },
-          { title: 'allocated memory', data: 'memory', type: 'num', render: make_memory },
-          { title: '%mem', data: '%mem' },
-          { title: 'vmem', data: 'vmem', type: 'num', render: make_memory },
-          { title: 'rss', data: 'rss', type: 'num', render: make_memory },
-          { title: 'peak_vmem', data: 'peak_vmem', type: 'num', render: make_memory },
-          { title: 'peak_rss', data: 'peak_rss', type: 'num', render: make_memory },
-          { title: 'allocated time', data: 'time', type: 'num', render: make_duration },
-          { title: 'duration', data: 'duration', type: 'num', render: make_duration },
-          { title: 'realtime', data: 'realtime', type: 'num', render: make_duration },
-          { title: 'script', data: 'script', render: function(data) {
-              return '<pre class="script_block short"><code>' + data.trim() + '</code></pre>';
-            }
-          },
-          { title: 'exit', data: 'exit' },
-          { title: 'submit', data: 'submit', type: 'num', render: make_date },
-          { title: 'start', data: 'start', type: 'num', render: make_date },
-          { title: 'complete', data: 'complete', type: 'num', render: make_date },
-          { title: 'rchar', data: 'rchar', type: 'num', render: make_memory },
-          { title: 'wchar', data: 'wchar', type: 'num', render: make_memory },
-          { title: 'syscr', data: 'syscr', type: 'num', render: make_memory },
-          { title: 'syscw', data: 'syscw', type: 'num', render: make_memory },
-          { title: 'read_bytes', data: 'read_bytes', type: 'num', render: make_memory },
-          { title: 'write_bytes', data: 'write_bytes', type: 'num', render: make_memory },
-          { title: 'native_id', data: 'native_id' },
-          { title: 'name', data: 'name' },
-          { title: 'module', data: 'module' },
-          { title: 'container', data: 'container', render: function(data) {
-              return '<samp>'+data+'</samp>';
-            }
-          },
-          { title: 'disk', data: 'disk' },
-          { title: 'attempt', data: 'attempt' },
-          { title: 'scratch', data: 'scratch', render: function(data) {
-              return '<samp>'+data+'</samp>';
-            }
-          },
-          { title: 'workdir', data: 'workdir', render: function(data) {
-              return '<samp>'+data+'</samp>';
-            }
-          }
+          { title: co2EmissionsTitle, data: 'co2e', render: make_co2e },
+          { title: energyConsumptionTitle, data: 'energy', render: make_energy },
         ],
         "deferRender": true,
         "lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
@@ -238,8 +236,8 @@ $(function() {
         "colReorder": true,
         "columnDefs": [
           { className: "id", "targets": [ 0,1,2,3 ] },
-          { className: "meta", "targets": [ 4,13,16,17,18,19,20,27,28,29,30,31,32,33,34 ] },
-          { className: "metrics", "targets": [ 5,6,7,8,9,10,11,12,14,15,21,22,23,24,25,26 ] }
+          { className: "meta", "targets": [ 4 ] },
+          { className: "metrics", "targets": [ 5,6 ] }
         ],
         "buttons": [
           {
@@ -264,7 +262,7 @@ $(function() {
 
       // Insert column filter button group
       table.buttons().container()
-         .prependTo( $('#tasks_table_filter') );
+        .prependTo( $('#tasks_table_filter') );
 
       // Column filter button group onClick event to highlight active filter
       $('.buttons-colvisGroup').click(function(){

@@ -35,12 +35,13 @@ class CO2FootprintReportSummary {
 
     static {
         mappers.co2e = { CO2Record co2record -> co2record.getCO2e() as Double }
+        mappers.energy = { CO2Record co2record -> co2record.getEnergyConsumption() as Double }
     }
 
 
 
     /**
-     * Hold the summary for each series ie. co2e (only currently)
+     * Hold the summary for each series ie. co2e
      */
     private Map<String, Summary> series
 
@@ -57,7 +58,7 @@ class CO2FootprintReportSummary {
     }
 
     /**
-     * @return The list of series names eg `co2e` (only currently)
+     * @return The list of series names eg `co2e`
      */
     List<String> getNames() { names }
 
@@ -77,7 +78,7 @@ class CO2FootprintReportSummary {
      * Compute the summary stats for the collected tasks
      *
      * @param
-     *      name A series name eg {@code co2e} (only currently)
+     *      name A series name eg {@code co2e} 
      * @return
      *      A {@link Map} holding the summary containing the following stats:
      *      - min: minimal value
@@ -194,16 +195,16 @@ class CO2FootprintReportSummary {
             final result = new LinkedHashMap<String,?>(12)
             final sorted = tasks.sort( false, { CO2Record co2record -> metric.call(co2record) } )
 
-            result.mean = round(total / count as double)
-            result.min = round(quantile(sorted, 0))
-            result.q1 = round(quantile(sorted, 25))
-            result.q2 = round(quantile(sorted, 50))
-            result.q3 = round(quantile(sorted, 75))
-            result.max = round(quantile(sorted, 100))
+            result.mean = total / count as double
+            result.min = quantile(sorted, 0)
+            result.q1 = quantile(sorted, 25)
+            result.q2 = quantile(sorted, 50)
+            result.q3 = quantile(sorted, 75)
+            result.max = quantile(sorted, 100)
 
             // discard entry with all zero 
-            if( result.min == 0 && result.min == result.max  )
-                return null
+            //if( result.min == 0 && result.min == result.max  )
+            //    return null
 
             result.minLabel = minLabel
             result.maxLabel = maxLabel

@@ -203,14 +203,14 @@
   </div>
 
   <div class="container">
-    <h2 id="resources" style="padding-top: 80px;">Resource Usage</h2>
+    <h2 id="resources" style="padding-top: 80px;">CO2 Footprint Measures</h2>
     <p>These plots give an overview of the distribution of resource usage for each process.</p>
 
     <h4>CO2e</h4>
     <ul class="nav nav-tabs" id="co2eplot_tabs" role="tablist">
       <li class="nav-item">
-        <a class="nav-link active" id="co2eplot_tablink" data-toggle="tab" href="#co2eplot_tabpanel" role="tab" aria-controls="pctco2eplot_tabpanel" aria-expanded="false">
-          Raw Usage
+        <a class="nav-link active" id="co2eplot_tablink" data-toggle="tab" href="#co2eplot_tabpanel" role="tab" aria-controls="co2eplot_tabpanel" aria-expanded="false">
+          Raw Emisions
         </a>
       </li>
     </ul>
@@ -218,8 +218,28 @@
       <div class="tab-pane fade show active" id="co2eplot_tabpanel" role="tabpanel">
         <div id="co2eplot"></div>
       </div>
+      <div class="tab-pane fade" id="pctco2eplot_tabpanel" role="tabpanel">
+        <div id="pctco2eplot"></div>
       </div>
     </div>
+
+    <h4>Energy consumption</h4>
+    <ul class="nav nav-tabs" id="energyplot_tabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" id="energyplot_tablink" data-toggle="tab" href="#energyplot_tabpanel" role="tab" aria-controls="energyplot_tabpanel" aria-expanded="false">
+          Raw Consumption
+        </a>
+      </li>
+    </ul>
+    <div class="tab-content" id="energyplot_tabcontent">
+      <div class="tab-pane fade show active" id="energyplot_tabpanel" role="tabpanel">
+        <div id="energyplot"></div>
+      </div>
+      <div class="tab-pane fade" id="pctenergyplot_tabpanel" role="tabpanel">
+        <div id="pctenergyplot"></div>
+      </div>
+    </div>
+  </div>
 
 
   <div class="container">
